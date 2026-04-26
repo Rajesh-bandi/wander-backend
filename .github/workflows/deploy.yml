@@ -13,7 +13,7 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPO: wander-backend
-  ECS_CLUSTER: waander-cluster
+  ECS_CLUSTER: waader-cluster
   ECS_SERVICE: wander-backend-service
 
 jobs:
