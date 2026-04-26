@@ -11,9 +11,9 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: ap-south-1
+  AWS_REGION: us-east-1
   ECR_REPO: wander-backend
-  ECS_CLUSTER: wander-cluster
+  ECS_CLUSTER: waander-cluster
   ECS_SERVICE: wander-backend-service
 
 jobs:
@@ -43,9 +43,9 @@ jobs:
           docker push $REGISTRY/$ECR_REPO:$IMAGE_TAG
           docker push $REGISTRY/$ECR_REPO:latest
 
-      - name: Deploy to ECS
-        run: |
-          aws ecs update-service \
-            --cluster $ECS_CLUSTER \
-            --service $ECS_SERVICE \
-            --force-new-deployment
+      # - name: Deploy to ECS
+      #   run: |
+      #     aws ecs update-service \
+      #       --cluster $ECS_CLUSTER \
+      #       --service $ECS_SERVICE \
+      #       --force-new-deployment
