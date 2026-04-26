@@ -43,9 +43,9 @@ jobs:
           docker push $REGISTRY/$ECR_REPO:$IMAGE_TAG
           docker push $REGISTRY/$ECR_REPO:latest
 
-      # - name: Deploy to ECS
-      #   run: |
-      #     aws ecs update-service \
-      #       --cluster $ECS_CLUSTER \
-      #       --service $ECS_SERVICE \
-      #       --force-new-deployment
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --force-new-deployment
