@@ -21,6 +21,7 @@ const router = Router();
 
 // POST /api/upload — upload image, store in MongoDB as base64
 router.post("/", upload.single("image"), async (req, res) => {
+  console.log("🚀 NEW UPLOAD CODE VERSION");
   try {
     if (!req.file) {
       return res.status(400).json({ message: "No image file provided" });
@@ -39,6 +40,25 @@ router.post("/", upload.single("image"), async (req, res) => {
     // Return URL path that maps to /api/images/:id
     const url = `/api/images/${image._id}`;
     res.json({ url, filename });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// GET /api/images/:id — serve image from MongoDB
+router.get("/images/:id", async (req, res) => {
+  try {
+    const image = await Image.findById(req.params.id);
+    if (!image) {
+      return res.status(404).json({ message: "Image not found" });
+    }
+
+    const imgBuffer = Buffer.from(image.data, "base64");
+
+    res.set("Content-Type", image.mimeType);
+    res.set("Content-Length", imgBuffer.length);
+    res.set("Cache-Control", "public, max-age=31557600"); // Cache for 1 year
+    res.send(imgBuffer);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
