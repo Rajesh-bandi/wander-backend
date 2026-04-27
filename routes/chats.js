@@ -2,6 +2,7 @@ import { Router } from "express";
 import Chat from "../models/Chat.js";
 import User from "../models/User.js";
 import auth from "../middleware/auth.js";
+import { getIO, createNotification } from "../lib/socket.js";
 
 const router = Router();
 
@@ -52,13 +53,23 @@ router.post("/private/:userId", auth, async (req, res) => {
     });
 
     const populated = await chat.populate("participants", "username displayName avatar location");
+
+    // Notify the other user
+    await createNotification({
+      recipientId: req.params.userId,
+      senderId: req.userId,
+      type: "chat_request",
+      chatId: chat._id,
+      text: `${currentUser.displayName} wants to chat with you`,
+    });
+
     res.status(201).json({ chat: populated });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// POST /api/chats/:id/message — send a message (only if chat is accepted, or sender is initiator)
+// POST /api/chats/:id/message — send a message
 router.post("/:id/message", auth, async (req, res) => {
   try {
     const { text } = req.body;
@@ -73,7 +84,6 @@ router.post("/:id/message", auth, async (req, res) => {
 
     // For private chats, only allow messages if accepted (or if it's a group chat)
     if (chat.type === "private" && chat.requestStatus !== "accepted") {
-      // Allow the initiator to send the first message
       const isInitiator = chat.messages.length > 0 && chat.messages[0].author.toString() === req.userId;
       if (!isInitiator) {
         return res.status(403).json({ message: "Chat request must be accepted before you can send messages" });
@@ -85,6 +95,31 @@ router.post("/:id/message", auth, async (req, res) => {
 
     const updated = await Chat.findById(req.params.id)
       .populate("messages.author", "username displayName avatar");
+
+    const newMsg = updated.messages[updated.messages.length - 1];
+
+    // Emit real-time socket event to all participants
+    const io = getIO();
+    if (io) {
+      io.to(`chat:${req.params.id}`).emit("new_message", {
+        chatId: req.params.id,
+        message: newMsg,
+      });
+    }
+
+    // Create notifications for other participants
+    const sender = await User.findById(req.userId, "displayName");
+    for (const pid of chat.participants) {
+      if (pid.toString() !== req.userId) {
+        await createNotification({
+          recipientId: pid,
+          senderId: req.userId,
+          type: "chat_message",
+          chatId: chat._id,
+          text: `${sender.displayName}: ${text.substring(0, 50)}${text.length > 50 ? "..." : ""}`,
+        });
+      }
+    }
 
     res.json({ messages: updated.messages });
   } catch (error) {

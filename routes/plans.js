@@ -1,7 +1,9 @@
 import { Router } from "express";
 import Plan from "../models/Plan.js";
 import Chat from "../models/Chat.js";
+import User from "../models/User.js";
 import auth from "../middleware/auth.js";
+import { createNotification } from "../lib/socket.js";
 
 const router = Router();
 
@@ -122,6 +124,16 @@ router.post("/:id/request", auth, async (req, res) => {
     plan.pendingRequests.push(req.userId);
     await plan.save();
 
+    // Notify plan creator
+    const requester = await User.findById(req.userId, "displayName");
+    await createNotification({
+      recipientId: plan.creator,
+      senderId: req.userId,
+      type: "plan_request",
+      planId: plan._id,
+      text: `${requester.displayName} wants to join "${plan.title}"`,
+    });
+
     res.json({ message: "Join request sent" });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -151,6 +163,15 @@ router.post("/:id/accept/:userId", auth, async (req, res) => {
       { plan: plan._id },
       { $addToSet: { participants: req.params.userId } }
     );
+
+    // Notify the accepted user
+    await createNotification({
+      recipientId: req.params.userId,
+      senderId: req.userId,
+      type: "plan_accepted",
+      planId: plan._id,
+      text: `Your request to join "${plan.title}" was accepted!`,
+    });
 
     res.json({ message: "Request accepted" });
   } catch (error) {
