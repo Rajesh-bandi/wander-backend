@@ -16,6 +16,7 @@ import adminRoutes from "./routes/admin.js";
 import notificationRoutes from "./routes/notifications.js";
 import productRoutes from "./routes/products.js";
 import orderRoutes from "./routes/orders.js";
+import reviewRoutes from "./routes/reviews.js";
 import { initSocket } from "./lib/socket.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -49,6 +50,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 
 
