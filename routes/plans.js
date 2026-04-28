@@ -197,4 +197,111 @@ router.post("/:id/reject/:userId", auth, async (req, res) => {
   }
 });
 
+// PUT /api/plans/:id — edit plan (creator only)
+router.put("/:id", auth, async (req, res) => {
+  try {
+    const plan = await Plan.findById(req.params.id);
+    if (!plan) return res.status(404).json({ message: "Plan not found" });
+
+    if (plan.creator.toString() !== req.userId) {
+      return res.status(403).json({ message: "Only the creator can edit this plan" });
+    }
+
+    const { title, description, destination, coverImage, startDate, endDate, maxParticipants, budget, currency } = req.body;
+
+    // Validate dates if provided
+    const newStart = startDate ? new Date(startDate) : plan.startDate;
+    const newEnd = endDate ? new Date(endDate) : plan.endDate;
+
+    if (newEnd <= newStart) {
+      return res.status(400).json({ message: "End date must be after start date" });
+    }
+
+    // Validate maxParticipants if provided
+    if (maxParticipants !== undefined) {
+      if (maxParticipants < plan.participants.length) {
+        return res.status(400).json({
+          message: `Cannot set max participants below current participant count (${plan.participants.length})`,
+        });
+      }
+      if (maxParticipants < 2 || maxParticipants > 50) {
+        return res.status(400).json({ message: "Max participants must be between 2 and 50" });
+      }
+    }
+
+    if (title !== undefined) plan.title = title.trim();
+    if (description !== undefined) plan.description = description;
+    if (destination !== undefined) plan.destination = destination.trim();
+    if (coverImage !== undefined) plan.coverImage = coverImage;
+    if (startDate !== undefined) plan.startDate = newStart;
+    if (endDate !== undefined) plan.endDate = newEnd;
+    if (maxParticipants !== undefined) plan.maxParticipants = maxParticipants;
+    if (budget !== undefined) plan.budget = budget;
+    if (currency !== undefined) plan.currency = currency;
+
+    await plan.save();
+
+    const updated = await Plan.findById(req.params.id)
+      .populate("creator", "username displayName avatar location")
+      .populate("participants", "username displayName avatar location")
+      .populate("pendingRequests", "username displayName avatar location");
+
+    res.json({ plan: updated });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// DELETE /api/plans/:planId/participants/:userId — remove participant (creator only)
+router.delete("/:planId/participants/:userId", auth, async (req, res) => {
+  try {
+    const plan = await Plan.findById(req.params.planId);
+    if (!plan) return res.status(404).json({ message: "Plan not found" });
+
+    if (plan.creator.toString() !== req.userId) {
+      return res.status(403).json({ message: "Only the creator can remove participants" });
+    }
+
+    // Cannot remove the creator
+    if (req.params.userId === plan.creator.toString()) {
+      return res.status(400).json({ message: "Cannot remove the plan creator" });
+    }
+
+    // Check if user is a participant
+    if (!plan.participants.includes(req.params.userId)) {
+      return res.status(400).json({ message: "User is not a participant in this plan" });
+    }
+
+    // Remove from participants
+    plan.participants = plan.participants.filter(
+      (p) => p.toString() !== req.params.userId
+    );
+    await plan.save();
+
+    // Remove from group chat
+    await Chat.findOneAndUpdate(
+      { plan: plan._id },
+      { $pull: { participants: req.params.userId } }
+    );
+
+    // Notify the removed user
+    await createNotification({
+      recipientId: req.params.userId,
+      senderId: req.userId,
+      type: "plan_removed",
+      planId: plan._id,
+      text: `You were removed from "${plan.title}"`,
+    });
+
+    const updated = await Plan.findById(req.params.planId)
+      .populate("creator", "username displayName avatar location")
+      .populate("participants", "username displayName avatar location")
+      .populate("pendingRequests", "username displayName avatar location");
+
+    res.json({ plan: updated, message: "Participant removed" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 export default router;

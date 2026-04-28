@@ -113,18 +113,19 @@ router.get("/:id", auth, async (req, res) => {
   }
 });
 
-// PUT /api/posts/:id — edit own post
+// PUT /api/posts/:id — edit own post (including image)
 router.put("/:id", auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: "Post not found" });
     if (post.author.toString() !== req.userId) {
-      return res.status(403).json({ message: "Not authorized" });
+      return res.status(403).json({ message: "Not authorized to edit this post" });
     }
-    const { caption, location, tags } = req.body;
+    const { caption, location, tags, image } = req.body;
     if (caption !== undefined) post.caption = caption;
     if (location !== undefined) post.location = location;
     if (tags !== undefined) post.tags = tags;
+    if (image !== undefined) post.image = image;
     await post.save();
     const updated = await Post.findById(req.params.id)
       .populate("author", "username displayName avatar location")

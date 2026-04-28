@@ -12,10 +12,10 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPO: wander-backend
-  ECS_CLUSTER: waader-cluster   # ✅ FIXED TYPO
+  ECS_CLUSTER: waader-cluster   
   ECS_SERVICE: wander-backend-service
-  TASK_DEFINITION: task-wander-backend   # 👈 your task definition name
-  CONTAINER_NAME: wander-backend         # 👈 container name inside task
+  TASK_DEFINITION: task-wander-backend   
+  CONTAINER_NAME: wander-backend         
 
 jobs:
   deploy:
