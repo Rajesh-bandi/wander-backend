@@ -62,5 +62,6 @@ connectDB().then(async () => {
   httpServer.listen(PORT, () => {
     console.log(`🚀 Wander API running on http://localhost:${PORT}`);
     console.log(`📡 Socket.IO enabled for real-time notifications & chat`);
+    console.log("new backend code ");
   });
 });
